@@ -1,0 +1,108 @@
+import tensorflow
+import cv2
+import numpy as np
+import os
+import pafy
+import moviepy.editor as mp
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, LSTM, TimeDistributed, Dropout, BatchNormalization
+from tensorflow.keras.optimizers import Adam
+import matplotlib.pyplot as plt
+
+def load_and_preprocess_video(video_path, img_size=(848,480), frames=29.99):
+    cap = cv2.VideoCapture(video_path)
+    frame_list = []
+    for _ in range(frames):
+        ret, frame = cap.read()
+        if not ret:
+            break
+        frame = cv2.resize(frame, img_size)
+        frame = frame / 255.0
+        frame_list.append(frame)
+    cap.release()
+    return np.array(frame_list)
+
+def create_model(input_shape):
+    model = Sequential([
+        TimeDistributed(Conv2D(32, (3, 3), activation='relu'), input_shape=input_shape),
+        TimeDistributed(MaxPooling2D((2, 2))),
+        TimeDistributed(Conv2D(64, (3, 3), activation='relu')),
+        TimeDistributed(MaxPooling2D((2, 2))),
+        TimeDistributed(Flatten()),
+        LSTM(50),
+        Dense(64, activation='relu'),
+        Dropout(0.5),
+        Dense(1, activation='sigmoid')
+    ])
+    return model
+
+def plot_history(history):
+    plt.figure(figsize=(12, 4))
+    
+    plt.subplot(1, 2, 1)
+    plt.plot(history.history['loss'], label='Training Loss')
+    plt.plot(history.history['val_loss'], label='Validation Loss')
+    plt.title('Loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+    
+    plt.subplot(1, 2, 2)
+    plt.plot(history.history['accuracy'], label='Training Accuracy')
+    plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+    plt.title('Accuracy')
+    plt.xlabel('Epochs')
+    plt.ylabel('Accuracy')
+    plt.legend()
+    
+    plt.show()
+
+def download_youtube_video(url, filename):
+    video = pafy.new(url)
+    best = video.getbest(preftype="mp4")
+    best.download(filepath=filename)
+    return filename
+
+# Example usage:
+if __name__ == "__main__":
+    # Example: Load a sample video
+    video_path = 'C:/Users/kb290/Videos/mvideo/WhatsApp Video 2024-02-28 at 14.30.54_d6596bf8.mp4'
+    video_data = load_and_preprocess_video(video_path)
+
+    # Assuming `videos` is a list of preprocessed video data and `labels` is a list of corresponding labels
+    videos = [video_data]  # Add your preprocessed video data here
+    labels = [0,1,2,3,4]  # Add your labels here
+
+    if len(videos) > 1:
+        from sklearn.model_selection import train_test_split
+        X_train, X_test, y_train, y_test = train_test_split(videos, labels, test_size=0.2, random_state=42)
+        validation_split = 0.2
+    else:
+        X_train, X_test, y_train, y_test = videos, videos, labels, labels
+        validation_split = 0.0
+
+    input_shape = (30, 64, 64, 3)  # Adjust according to your data
+    model = create_model(input_shape)
+    model.compile(optimizer=Adam(), loss='binary_crossentropy', metrics=['accuracy'])
+
+    if validation_split > 0 and len(X_train) > 1:
+        history = model.fit(np.array(X_train), np.array(y_train), epochs=10, validation_split=validation_split)
+    else:
+        history = model.fit(np.array(X_train), np.array(y_train), epochs=10)
+
+    # Evaluate the model on the test set
+    test_loss, test_acc = model.evaluate(np.array(X_test), np.array(y_test))
+    print(f'Test Accuracy: {test_acc}')
+
+    if validation_split > 0 and len(X_train) > 1:
+        plot_history(history)
+
+    # Example: Download and test a video from YouTube
+    youtube_url = 'https://www.youtube.com/watch?v=sGxw7ipTrq8'  # Adjust the URL
+    filename = 'youtube_video.mp4'
+    download_youtube_video(youtube_url, filename)
+
+    test_video_data = load_and_preprocess_video(filename)
+    predictions = model.predict(np.expand_dims(test_video_data, axis=0))
+    predicted_action = np.argmax(predictions, axis=1)
+    print(f'Predicted Action: {predicted_action}')
