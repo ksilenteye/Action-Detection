@@ -9,7 +9,7 @@ from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, LSTM, 
 from tensorflow.keras.optimizers import Adam
 import matplotlib.pyplot as plt
 
-def load_and_preprocess_video(video_path, img_size=(848,480), frames=29.99):
+def load_and_preprocess_video(video_path, img_size=(36,68), frames=30):
     cap = cv2.VideoCapture(video_path)
     frame_list = []
     for _ in range(frames):
@@ -66,7 +66,7 @@ def download_youtube_video(url, filename):
 # Example usage:
 if __name__ == "__main__":
     # Example: Load a sample video
-    video_path = 'C:/Users/kb290/Videos/mvideo/WhatsApp Video 2024-02-28 at 14.30.54_d6596bf8.mp4'
+    video_path = 'Sample.mp4'
     video_data = load_and_preprocess_video(video_path)
 
     # Assuming `videos` is a list of preprocessed video data and `labels` is a list of corresponding labels
